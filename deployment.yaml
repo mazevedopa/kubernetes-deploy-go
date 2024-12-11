@@ -4,11 +4,11 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: go-server
-  #namespace: go
+  namespace: deploy-go
   labels:
     app: goapi
 spec:
-  replicas: 3
+  replicas: 1
   selector:
     matchLabels:
       app: goapi
@@ -30,7 +30,7 @@ kind: Service
 apiVersion: v1
 metadata:
   name: go-service
-  #namespace: go
+  namespace: deploy-go
 spec:
   selector:
     app: goapi
@@ -42,19 +42,31 @@ spec:
 
 
 ---
-apiVersion: extensions/v1beta1
+apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
-  #namespace: go
+  namespace: deploy-go
   name: go-ingress
   annotations:
-    allow.http: "false"
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+    nginx.ingress.kubernetes.io/rewrite-target: /
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+  
 spec:
+  ingressClassName: nginx
+  tls:
+  - hosts:
+    - deploy-go.resolvenergiasolar.com
+    secretName: logistica-tls                                       # Nome do secret TLS para o certificado gerado pelo cert-manager
   rules:
-  - host: go.rancher.dev-ops-ninja.com
+  - host: deploy-go.resolvenergiasolar.com
     http:
       paths:
-        - path: /
-          backend:
-            serviceName: go-service
-            servicePort: 80
+      - path: /                                                    # Diretório base da aplicação
+        pathType: Prefix
+        backend:
+          service:
+            name: go-service                         # Nome do serviço backend
+            port:
+              number: 80                                        # Porta onde o serviço escuta
+
